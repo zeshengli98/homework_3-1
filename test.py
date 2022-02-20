@@ -1,3 +1,5 @@
+
+
 from dash import Dash, dcc, html, Input, Output,State
 import plotly.express as px
 
@@ -12,38 +14,64 @@ df = pd.DataFrame({
 })
 
 app.layout = html.Div([
-    dcc.Graph(id='graph'),
-    html.Table(id='table'),
-    dcc.Dropdown(id='dropdown'),
+    html.H4("Select value for endDateTime:"),
+    html.Div(
+        children=[
+            html.P("You may select a specific endDateTime for the call to " + \
+                   "fetch_historical_data. If any of the below is left empty, " + \
+                   "the current present moment will be used.")
+        ],
+        style={'width': '365px'}
+    ),
 
-    # dcc.Store stores the intermediate value
-    dcc.Store(id='intermediate-value')
+
+    html.Div(
+        children = [
+            html.Div(
+                children = [
+                    html.Label('Date:'),
+                    dcc.DatePickerSingle(id='edt-date')
+                ],
+                style = {
+                    'display': 'inline-block',
+                    'margin-right': '20px',
+                }
+            ),
+            html.Div(
+                children = [
+                    html.Label('Hour:'),
+                    dcc.Dropdown(list(range(24)), id='edt-hour'),
+                ],
+                style = {
+                    'display': 'inline-block',
+                    'padding-right': '5px'
+                }
+            ),
+            html.Div(
+                children = [
+                    html.Label('Minute:'),
+                    dcc.Dropdown(list(range(60)), id='edt-minute'),
+                ],
+                style = {
+                    'display': 'inline-block',
+                    'padding-right': '5px'
+                }
+            ),
+            html.Div(
+                children = [
+                    html.Label('Second:'),
+                    dcc.Dropdown(list(range(60)), id='edt-second'),
+                ],
+                style = {'display': 'inline-block'}
+            )
+        ]
+    ),
+    html.Div(id = "aaa")
 ])
 
-@app.callback(Output('intermediate-value', 'data'), Input('dropdown', 'value'))
-def clean_data(value):
-     # some expensive data processing step
-     cleaned_df = slow_processing_step(value)
-
-     # more generally, this line would be
-     # json.dumps(cleaned_df)
-     return cleaned_df.to_json(date_format='iso', orient='split')
-
-@app.callback(Output('graph', 'figure'), Input('intermediate-value', 'data'))
-def update_graph(jsonified_cleaned_data):
-
-    # more generally, this line would be
-    # json.loads(jsonified_cleaned_data)
-    dff = pd.read_json(jsonified_cleaned_data, orient='split')
-
-    figure = create_figure(dff)
-    return figure
-
-@app.callback(Output('table', 'children'), Input('intermediate-value', 'data'))
-def update_table(jsonified_cleaned_data):
-    dff = pd.read_json(jsonified_cleaned_data, orient='split')
-    table = create_table(dff)
-    return table
+@app.callback(Output('aaa', 'children'), Input('edt-date', 'date'))
+def clean_data(edt_date):
+     return edt_date
 
 
 if __name__ == '__main__':

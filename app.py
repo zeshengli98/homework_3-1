@@ -5,6 +5,7 @@ from dash import html
 from dash.dependencies import Input, Output, State
 from ibapi.contract import Contract
 from fintech_ibkr import *
+import datetime
 import pandas as pd
 
 # Make a Dash app!
@@ -186,7 +187,11 @@ app.layout = html.Div([
     html.Button('Trade', id='trade-button', n_clicks=0)
 
 ])
-
+def time_reformat(time):
+    t=str(time)
+    if len(t)==1:
+        t = "0" + t
+    return t
 # Callback for what to do when submit-button is pressed
 @app.callback(
     [ # there's more than one output here, so you have to use square brackets to pass it in as an array.
@@ -214,8 +219,12 @@ def update_candlestick_graph(n_clicks, currency_string, what_to_show,
     if any([i is None for i in [edt_date, edt_hour, edt_minute, edt_second]]):
         endDateTime = ''
     else:
-        endDateTime = f"{edt_date} {edt_hour}:{edt_minute}:{edt_second}"
-        print(endDateTime)
+        date = "".join(edt_date.split("-"))
+        hour = time_reformat(edt_hour)
+        min = time_reformat(edt_minute)
+        sec = time_reformat(edt_second)
+
+        endDateTime = date + ' '+ hour + ":" + min + ":" + sec
 
     # First things first -- what currency pair history do you want to fetch?
     # Define it as a contract object!
@@ -239,7 +248,7 @@ def update_candlestick_graph(n_clicks, currency_string, what_to_show,
     #   function to include your new vars!
     cph = fetch_historical_data(
         contract=contract,
-        endDateTime='',
+        endDateTime=endDateTime,
         durationStr=f'{duration_int} {duration_type}',       # <-- make a reactive input
         barSizeSetting=bar_size,  # <-- make a reactive input
         whatToShow=what_to_show,
