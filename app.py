@@ -27,15 +27,73 @@ app.layout = html.Div([
         ),
         style = {'width': '365px'}
     ),
-    html.H4("Select value for endDateTime:"),
+
+    # Add a Duration block to make duration reactive
+    html.H4("Select value for Duration:"),
     html.Div(
         children = [
+            html.P("Set the query duration up to one week, using a time unitof seconds, days or weeks." + \
+                   "Duration includes S (seconds), D (days) or W (week)")
+        ],
+        style = {'width': '365px'}
+    ),
+    html.Div(
+        # The input object itself
+        ["Input duration: ", dcc.Input(
+            id='duration-Int', value='1', type='text'
+        ), dcc.Dropdown(options=[
+       {'label': 'Second', 'value': 'S'},
+       {'label': 'Day', 'value': 'D'},
+       {'label': 'Week', 'value': 'W'},
+   ],value = "D",id='duration-type')],
+        # Style it so that the submit button appears beside the input.
+        style={'width': '365px'}
+    ),
+
+    # Add a barSize block to make barSizeSetting var reactive
+    html.H4("Select value for barSize:"),
+    html.Div(
+        children=[
+            html.P("Specifies the size of the bars that will be showed in the figure")
+        ],
+        style={'width': '365px'}
+    ),
+    html.Div(
+        # The input object itself
+        ["Select bar size: ", dcc.Dropdown(["1 sec","5 secs","15 secs","30 secs",
+                                            "1 min","2 mins","3 mins","5 mins","15 mins",
+                                            "30 mins","1 hour","1 day"], "1 hour", id='bar-size')],
+        # Style it so that the submit button appears beside the input.
+        style={'width': '365px'}
+    ),
+
+    html.H4("Select returning data:"),
+    html.Div(
+        children=[
+            html.P("Specifies the size of the bars that will be showed in the figure")
+        ],
+        style={'width': '365px'}
+    ),
+    html.Div(
+        # The input object itself
+        ["Select bar size: ", dcc.RadioItems(options = [{"label":"return all data","value":False},
+                                                        {"label":"return regular trading time","value":True}],
+                                             value = True, id='data-return-type')],
+        # Style it so that the submit button appears beside the input.
+        style={'width': '365px'}
+    ),
+
+    html.H4("Select value for endDateTime:"),
+    html.Div(
+        children=[
             html.P("You may select a specific endDateTime for the call to " + \
                    "fetch_historical_data. If any of the below is left empty, " + \
                    "the current present moment will be used.")
         ],
-        style = {'width': '365px'}
+        style={'width': '365px'}
     ),
+
+
     html.Div(
         children = [
             html.Div(
@@ -143,17 +201,21 @@ app.layout = html.Div([
     #   of 'currency-input' at the time the button was pressed DOES get passed in.
     [State('currency-input', 'value'), State('what-to-show', 'value'),
      State('edt-date', 'date'), State('edt-hour', 'value'),
-     State('edt-minute', 'value'), State('edt-second', 'value')]
+     State('edt-minute', 'value'), State('edt-second', 'value'),
+     State('duration-Int', 'value'),State('duration-type', 'value'), State('bar-size', 'value'),
+     State('data-return-type','value')]
 )
 def update_candlestick_graph(n_clicks, currency_string, what_to_show,
-                             edt_date, edt_hour, edt_minute, edt_second):
+                             edt_date, edt_hour, edt_minute, edt_second,
+                             duration_int,duration_type,bar_size,data_return_type):
     # n_clicks doesn't
     # get used, we only include it for the dependency.
 
     if any([i is None for i in [edt_date, edt_hour, edt_minute, edt_second]]):
         endDateTime = ''
     else:
-        print(edt_date, edt_hour, edt_minute, edt_second)
+        endDateTime = f"{edt_date} {edt_hour}:{edt_minute}:{edt_second}"
+        print(endDateTime)
 
     # First things first -- what currency pair history do you want to fetch?
     # Define it as a contract object!
@@ -175,53 +237,31 @@ def update_candlestick_graph(n_clicks, currency_string, what_to_show,
     # Some default values are provided below to help with your testing.
     # Don't forget -- you'll need to update the signature in this callback
     #   function to include your new vars!
-    # cph = fetch_historical_data(
-    #     contract=contract,
-    #     endDateTime='',
-    #     durationStr='30 D',       # <-- make a reactive input
-    #     barSizeSetting='1 hour',  # <-- make a reactive input
-    #     whatToShow=what_to_show,
-    #     useRTH=True               # <-- make a reactive input
-    # )
-    # # # Make the candlestick figure
-    # fig = go.Figure(
-    #     data=[
-    #         go.Candlestick(
-    #             x=cph['date'],
-    #             open=cph['open'],
-    #             high=cph['high'],
-    #             low=cph['low'],
-    #             close=cph['close']
-    #         )
-    #     ]
-    # )
-    # # # Give the candlestick figure a title
-    # fig.update_layout(title=('Exchange Rate: ' + currency_string))
-    ############################################################################
-    ############################################################################
-
-    ############################################################################
-    ############################################################################
-    # This block returns a candlestick plot of apple stock prices. You'll need
-    # to delete or comment out this block and use your currency prices instead.
-    df = pd.read_csv(
-        'https://raw.githubusercontent.com/plotly/datasets/master/finance-charts-apple.csv'
+    cph = fetch_historical_data(
+        contract=contract,
+        endDateTime='',
+        durationStr=f'{duration_int} {duration_type}',       # <-- make a reactive input
+        barSizeSetting=bar_size,  # <-- make a reactive input
+        whatToShow=what_to_show,
+        useRTH=data_return_type               # <-- make a reactive input
     )
+    # # # Make the candlestick figure
     fig = go.Figure(
         data=[
             go.Candlestick(
-                x=df['Date'],
-                open=df['AAPL.Open'],
-                high=df['AAPL.High'],
-                low=df['AAPL.Low'],
-                close=df['AAPL.Close']
+                x=cph['date'],
+                open=cph['open'],
+                high=cph['high'],
+                low=cph['low'],
+                close=cph['close']
             )
         ]
     )
+    # # # Give the candlestick figure a title
+    fig.update_layout(title=('Exchange Rate: ' + currency_string))
+    ############################################################################
+    ############################################################################
 
-    currency_string = 'default Apple price data fetch'
-    ############################################################################
-    ############################################################################
 
     # Return your updated text to currency-output, and the figure to candlestick-graph outputs
     return ('Submitted query for ' + currency_string), fig
@@ -255,4 +295,4 @@ def trade(n_clicks, action, trade_currency, trade_amt): # Still don't use n_clic
 
 # Run it!
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(port=8052,debug=True)

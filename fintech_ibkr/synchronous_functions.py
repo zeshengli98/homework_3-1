@@ -27,7 +27,7 @@ class ibkr_app(EWrapper, EClient):
         # I've already done the same general process you need to go through
         # in the self.error_messages instance variable, so you can use that as
         # a guide.
-        self.historical_data = ''
+        self.historical_data = pd.DataFrame()
         self.historical_data_end = ''
         self.contract_details = ''
         self.contract_details_end = ''
@@ -53,7 +53,15 @@ class ibkr_app(EWrapper, EClient):
         # Take a look at candlestick_plot.ipynb for some help!
         # assign the dataframe to self.historical_data.
         # print(reqId, bar)
-        self.historical_data = bar
+        row = pd.DataFrame({
+            "date": [bar.date],
+            "open": bar.open,
+            "close": bar.close,
+            "high": bar.high,
+            "low": bar.low
+        }
+        )
+        self.historical_data = pd.concat([self.historical_data, row],ignore_index=True)
 
     def historicalDataEnd(self, reqId: int, start: str, end: str):
         # super().historicalDataEnd(reqId, start, end)
