@@ -304,4 +304,4 @@ def trade(n_clicks, action, trade_currency, trade_amt): # Still don't use n_clic
 
 # Run it!
 if __name__ == '__main__':
-    app.run_server(port=8052,debug=True)
+    app.run_server(debug=True)
