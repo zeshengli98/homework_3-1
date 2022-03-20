@@ -10,7 +10,7 @@ import pandas as pd
 
 # Make a Dash app!
 app = dash.Dash(__name__)
-
+server = app.server
 # Define the layout.
 app.layout = html.Div([
 
@@ -156,14 +156,20 @@ app.layout = html.Div([
         # Style it so that the submit button appears beside the input.
         style={'display': 'inline-block', 'padding-top': '5px'}
     ),
+
     # Submit button
     html.Button('Submit', id='submit-button', n_clicks=0),
     # Line break
     html.Br(),
     # Div to hold the initial instructions and the updated info once submit is pressed
-    html.Div(id='currency-output', children='Enter a currency code and press submit'),
+    html.Div(id='currency-output', children='Enter a currency code and press submit',
+             style={'color': 'blue', 'fontSize': 15}),
     # Div to hold the candlestick graph
-    html.Div([dcc.Graph(id='candlestick-graph')]),
+    dcc.Loading(
+        id="loading-1",
+        type="default",
+        children=html.Div([dcc.Graph(id='candlestick-graph')])
+    ),
     # Another line break
     html.Br(),
     # Section title
@@ -243,6 +249,23 @@ def update_candlestick_graph(n_clicks, currency_string, what_to_show,
     #   the required inputs for req_historical_data().
     # This resource should help a lot: https://dash.plotly.com/dash-core-components
 
+    contract_details = fetch_contract_details(contract)
+
+
+    if type(contract_details) == str:
+        message = f"Error: {contract_details}! Please check your input."
+        # if wrong input, return blank figure
+        return message, go.Figure()
+
+    else:
+        s = str(contract_details).split(",")[10]
+        if  s== currency_string:
+            message = 'Submitted query for ' + currency_string
+        else:
+            message = f"Extraction symbol: {s} is not aligned with input {currency_string}."
+            # if wrong input, return blank figure
+            return message, go.Figure()
+
     # Some default values are provided below to help with your testing.
     # Don't forget -- you'll need to update the signature in this callback
     #   function to include your new vars!
@@ -273,7 +296,7 @@ def update_candlestick_graph(n_clicks, currency_string, what_to_show,
 
 
     # Return your updated text to currency-output, and the figure to candlestick-graph outputs
-    return ('Submitted query for ' + currency_string), fig
+    return message, fig
 
 # Callback for what to do when trade-button is pressed
 @app.callback(

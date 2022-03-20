@@ -27,7 +27,9 @@ class ibkr_app(EWrapper, EClient):
         # I've already done the same general process you need to go through
         # in the self.error_messages instance variable, so you can use that as
         # a guide.
-        self.historical_data = pd.DataFrame()
+        self.historical_data = pd.DataFrame(
+            columns=['date','open','high','low','close']
+        )
         self.historical_data_end = ''
         self.contract_details = ''
         self.contract_details_end = ''
@@ -53,20 +55,32 @@ class ibkr_app(EWrapper, EClient):
         # Take a look at candlestick_plot.ipynb for some help!
         # assign the dataframe to self.historical_data.
         # print(reqId, bar)
-        row = pd.DataFrame({
-            "date": [bar.date],
-            "open": bar.open,
-            "close": bar.close,
-            "high": bar.high,
-            "low": bar.low
-        }
+        bar_df = pd.DataFrame(
+            {
+                'date': [bar.date],
+                'open': [bar.open],
+                'high': [bar.high],
+                'low': [bar.low],
+                'close': [bar.close],
+            }
         )
-        self.historical_data = pd.concat([self.historical_data, row],ignore_index=True)
+        self.historical_data = pd.concat(
+            [self.historical_data, bar_df],
+            ignore_index=True
+        )
 
     def historicalDataEnd(self, reqId: int, start: str, end: str):
-        # super().historicalDataEnd(reqId, start, end)
-        print("HistoricalDataEnd. ReqId:", reqId, "from", start, "to", end)
+        # print("HistoricalDataEnd. ReqId:", reqId, "from", start, "to", end)
         self.historical_data_end = reqId
+
+    def contractDetails(self, reqId:int, contractDetails):
+        print(type(contractDetails))
+        print(contractDetails)
+        self.contract_details = contractDetails
+
+    def contractDetailsEnd(self, reqId:int):
+        print("ContractDetailsEnd. ReqId:", reqId)
+        self.contract_details_end = reqId
 
 def fetch_managed_accounts(hostname=default_hostname, port=default_port,
                            client_id=default_client_id):
@@ -103,5 +117,32 @@ def fetch_historical_data(contract, endDateTime='', durationStr='30 D',
         whatToShow, useRTH, formatDate=1, keepUpToDate=False, chartOptions=[])
     while app.historical_data_end != tickerId:
         time.sleep(0.01)
+
+
     app.disconnect()
     return app.historical_data
+
+def fetch_contract_details(contract, hostname=default_hostname,
+                          port=default_port, client_id=default_client_id):
+    app = ibkr_app()
+    app.connect(hostname, port, client_id)
+    while not app.isConnected():
+        time.sleep(0.01)
+
+    def run_loop():
+        app.run()
+
+    api_thread = threading.Thread(target=run_loop, daemon=True)
+    api_thread.start()
+    while isinstance(app.next_valid_id, type(None)):
+        time.sleep(0.01)
+    tickerId = app.next_valid_id
+    app.reqContractDetails(tickerId, contract)
+    while app.contract_details_end != tickerId:
+        time.sleep(0.01)
+        if app.error_messages.iloc[-1]['reqId']==1:
+            app.disconnect()
+            return app.error_messages.iloc[-1]['errorString']
+    app.disconnect()
+    return app.contract_details
+#return app.error_messages.iloc[-1]['']
