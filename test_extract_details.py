@@ -25,9 +25,15 @@ contract.currency = value.split(".")[1]
 # contract.exchange = 'SMART'
 # contract.currency = 'USD'
 
-
+host = "127.0.0.1"
+port = 7497
+clientid = 10645
 # Get your contract details
-contract_details = fetch_contract_details(contract)
+contract_details = fetch_contract_details(contract, hostname=host,
+                                                  port=port, client_id=clientid)
+
+
+print(contract_details['symbol'])
 if type(contract_details) == str:
     message = f"Error: {contract_details}! Please check your input."
 else:
