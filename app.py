@@ -1,7 +1,7 @@
 import dash
 import plotly.graph_objects as go
 from dash import dcc
-from dash import html
+from dash import html,dash_table
 from dash.dependencies import Input, Output, State
 from ibapi.contract import Contract
 from ibapi.order import Order
@@ -254,16 +254,44 @@ app.layout = html.Div([
         ],
         value='BUY'
     ),
-    # Text input for the currency pair to be traded
-    dcc.Input(id='trade-currency', value='AUDCAD', type='text'),
-    # Numeric input for the trade amount
-    dcc.Input(id='trade-amt', value='20000', type='number'),
     # # Trade type
-    dcc.RadioItems(id='order-type',options=[{'label':'Market','value':'MKT'},
-                                            {'label':"Limit",'value':'LMT'}], value='MKT', inline=True),
-    html.Div(["Input limit price: ", dcc.Input(id='limit-price', value='', type='number')]),
+    dcc.RadioItems(id='order-type', options=[{'label': 'Market', 'value': 'MKT'},
+                                             {'label': "Limit", 'value': 'LMT'}], value='MKT', inline=True),
+    html.Div(
+        # The input object itself
+        ["Limit Price: ", dcc.Input(id='limit-price', value='100', type='number')],
+        style={'padding-top': '5px', 'visibility': 'visible'}
+    ),
+
+    html.Div(
+        # The input object itself
+        ["Symbol: ", dcc.Input(id='contract-symbol', value='EUR', type='text')], style={'padding-top': '5px'}
+    ),
+    html.Div(
+        # The input object itself
+        ["SerType: ", dcc.Input(id='contract-sec-type', value='CASH', type='text')], style={'padding-top': '5px'}
+    ),
+    html.Div(
+        # The input object itself
+        ["Currency: ", dcc.Input(id='contract-currency', value='USD', type='text')], style={'padding-top': '5px'}
+    ),
+    html.Div(
+        # Numeric input for the trade amount
+        ["Exchange: ", dcc.Input(id='contract-exchange', value='IDEALPRO', type='text')], style={'padding-top': '5px'}
+    ),
+    html.Div(
+        # Numeric input for the trade amount
+        ["Amount: ", dcc.Input(id='trade-amt', value='10000', type='number')], style={'padding-top': '5px'}
+    ),
+
+    # html.Div(["Input limit price: ", dcc.Input(id='limit-price', value='', type='number')]),
     # Submit button for the trade
-    html.Button('Trade', id='trade-button', n_clicks=0)
+    html.Button('Trade', id='trade-button', n_clicks=0),
+    dash_table.DataTable(pd.read_csv('submitted_orders.csv',index_col=0).to_dict('records'))
+
+
+
+
 
 ])
 def time_reformat(time):
@@ -415,38 +443,54 @@ def update_candlestick_graph(n_clicks, currency_string, what_to_show,
     Input('trade-button', 'n_clicks'),
     # We DON'T want to run this function whenever buy-or-sell, trade-currency, or trade-amt is updated, so we pass those
     #   in as States, not Inputs:
-    [State('buy-or-sell', 'value'), State('trade-currency', 'value'),
-     State('trade-amt', 'value'), State("limit-price", "value"),
+    [State('buy-or-sell', 'value'), State("limit-price", "value"),State("contract-symbol", "value"),
+    State("contract-sec-type", "value"),State("contract-currency", "value"),State("contract-exchange", "value"), State('trade-amt', 'value'),
      State("host", "value"),State("port", "value"), State("clientid", "value")],
     # We DON'T want to start executing trades just because n_clicks was initialized to 0!!!
     prevent_initial_call=True
 )
-def trade(n_clicks, action, trade_currency, trade_amt, lmt_price, host, port, clientid): # Still don't use n_clicks, but we need the dependency
+def trade(n_clicks, action,lmt_price, con_symbol, con_type,con_currency, con_exchange, trade_amt,host, port, clientid): # Still don't use n_clicks, but we need the dependency
     contract = Contract()
-    contract.symbol   = trade_currency.split(".")[0]
-    contract.secType  = 'CASH'
-    contract.exchange = 'IDEALPRO' # 'IDEALPRO' is the currency exchange.
-    contract.currency = trade_currency.split(".")[1]
+    contract.symbol   = con_symbol
+    contract.secType  = con_type
+    contract.currency = con_currency
+    contract.exchange = con_exchange # 'IDEALPRO' is the currency exchange.
 
     order = Order()
     order.action = action
     order.orderType = "MKT"
     order.totalQuantity = trade_amt
     # Make the message that we want to send back to trade-output
-    msg = action + ' ' + str(trade_amt) + ' ' + trade_currency
+    msg = action + ' ' + str(trade_amt) + ' ' + con_symbol
 
+
+    order_response_mkt = place_order(contract, order)
+
+    time = fetch_current_time(host, port, clientid)
+    print("order successful!")
     # Make our trade_order object -- a DICTIONARY.
     trade_order = {
+        "timestamp": time,
+        "order_id": order.orderId,
+        "client_id": clientid,
+        'perm_id':order_response_mkt['perm_id'].iloc[-1],
+        'con_id':contract.conId,
+        'symbol':contract.symbol,
         "action": action,
-        "trade_currency": trade_currency,
-        "trade_amt": trade_amt,
-        "trade_limit":lmt_price,
-        "host":host,
-        "port":port,
-        "clientid":clientid
+        "size": trade_amt,
+        "order_type": order.orderType,
+        "trade_limit": lmt_price
     }
-    order_response_cp_mkt = place_order(contract, order)
-    print(order_response_cp_mkt)
+
+    try:
+        df = pd.read_csv('submitted_orders.csv',index_col=0)
+        df = pd.concat([df,pd.DataFrame(trade_order,index = [0])],axis=0,ignore_index=True)
+        df.to_csv('submitted_orders.csv')
+    except:
+        df = pd.DataFrame(trade_order,index = [0])
+        df.to_csv('submitted_orders.csv')
+    print("order recorded!")
+    print("order_response_mkt：",order_response_mkt)
     # Return the message, which goes to the trade-output div's "children" attribute.
     return msg
 
