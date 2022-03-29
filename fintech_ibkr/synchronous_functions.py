@@ -380,7 +380,7 @@ def place_order(contract, order, hostname=default_hostname,
 
     app.placeOrder(app.next_valid_id, contract, order)
     order_info = None
-    while not ('Filled' in set(app.order_status['status'])):
+    while not ('Filled' in set(app.order_status['status']) or 'Submitted' in set(app.order_status['status']) ):
         # print("app.order_status:",app.order_status)
         time.sleep(0.25)
     order_info = app.order_status.copy()

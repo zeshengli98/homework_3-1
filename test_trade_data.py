@@ -41,8 +41,8 @@ mkt_order.totalQuantity =100
 lmt_order = Order()
 lmt_order.action = "SELL"
 lmt_order.orderType = "LMT"
-lmt_order.totalQuantity = 100
-lmt_order.lmtPrice = 1012
+lmt_order.totalQuantity = 1
+lmt_order.lmtPrice = 1.125
 
 ##### FA Accounts #####
 # If you're a financial advisor (FA) then you're not finished creating your
@@ -59,14 +59,14 @@ lmt_order.account = 'DU1267861'
 # client who only trades index funds and dividend-paying stocks in the SP500!
 
 # Place orders!
-order_response_stk_lmt = place_order(contract_stk, lmt_order)
-# order_response_cp_mkt = place_order(contract_cp, mkt_order)
+# order_response_stk_lmt = place_order(contract_stk, lmt_order)
+order_response_cp_mkt = place_order(contract_cp, lmt_order)
 # order_response_crypto_mkt = place_order(contract_crypto, mkt_order)
 
 # Print the info returned by placing orders:
-print(order_response_stk_lmt)
+# print(order_response_stk_lmt)
 # print(order_response_crypto_mkt)
-# print(order_response_cp_mkt)
+print(order_response_cp_mkt)
 
 # You can select what you want from the response, for example:
 # print(order_response_cp_mkt['perm_id'])

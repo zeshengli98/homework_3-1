@@ -287,11 +287,9 @@ app.layout = html.Div([
     # html.Div(["Input limit price: ", dcc.Input(id='limit-price', value='', type='number')]),
     # Submit button for the trade
     html.Button('Trade', id='trade-button', n_clicks=0),
-    dash_table.DataTable(pd.read_csv('submitted_orders.csv',index_col=0).to_dict('records'))
-
-
-
-
+    html.Div(dash_table.DataTable(data=pd.read_csv('submitted_orders.csv',index_col=0).iloc[::-1].to_dict('records'),
+                         id="order-his-table",page_size=10, style_table={'height': '350px'}),
+             style = {'width': '800px',})
 
 ])
 def time_reformat(time):
@@ -438,18 +436,19 @@ def update_candlestick_graph(n_clicks, currency_string, what_to_show,
 # Callback for what to do when trade-button is pressed
 @app.callback(
     # We're going to output the result to trade-output
-    Output(component_id='trade-output', component_property='children'),
+    [Output(component_id='trade-output', component_property='children'),
+    Output(component_id='order-his-table', component_property='data')],
     # We only want to run this callback function when the trade-button is pressed
     Input('trade-button', 'n_clicks'),
     # We DON'T want to run this function whenever buy-or-sell, trade-currency, or trade-amt is updated, so we pass those
     #   in as States, not Inputs:
-    [State('buy-or-sell', 'value'), State("limit-price", "value"),State("contract-symbol", "value"),
+    [State('buy-or-sell', 'value'), State('order-type',"value"),State("limit-price", "value"),State("contract-symbol", "value"),
     State("contract-sec-type", "value"),State("contract-currency", "value"),State("contract-exchange", "value"), State('trade-amt', 'value'),
      State("host", "value"),State("port", "value"), State("clientid", "value")],
     # We DON'T want to start executing trades just because n_clicks was initialized to 0!!!
     prevent_initial_call=True
 )
-def trade(n_clicks, action,lmt_price, con_symbol, con_type,con_currency, con_exchange, trade_amt,host, port, clientid): # Still don't use n_clicks, but we need the dependency
+def trade(n_clicks, action,order_type,lmt_price, con_symbol, con_type,con_currency, con_exchange, trade_amt,host, port, clientid): # Still don't use n_clicks, but we need the dependency
     contract = Contract()
     contract.symbol   = con_symbol
     contract.secType  = con_type
@@ -458,8 +457,9 @@ def trade(n_clicks, action,lmt_price, con_symbol, con_type,con_currency, con_exc
 
     order = Order()
     order.action = action
-    order.orderType = "MKT"
+    order.orderType = order_type
     order.totalQuantity = trade_amt
+    order.lmtPrice=lmt_price
     # Make the message that we want to send back to trade-output
     msg = action + ' ' + str(trade_amt) + ' ' + con_symbol
 
@@ -479,7 +479,8 @@ def trade(n_clicks, action,lmt_price, con_symbol, con_type,con_currency, con_exc
         "action": action,
         "size": trade_amt,
         "order_type": order.orderType,
-        "trade_limit": lmt_price
+        "trade_limit": "-" if order.orderType=="MKT" else lmt_price,
+        "avg_fill_price":order_response_mkt['avg_fill_price'].iloc[-1],
     }
 
     try:
@@ -492,7 +493,7 @@ def trade(n_clicks, action,lmt_price, con_symbol, con_type,con_currency, con_exc
     print("order recorded!")
     print("order_response_mkt：",order_response_mkt)
     # Return the message, which goes to the trade-output div's "children" attribute.
-    return msg
+    return msg, df.iloc[::-1].to_dict('records')
 
 # Run it!
 if __name__ == '__main__':
