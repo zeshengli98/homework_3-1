@@ -49,7 +49,7 @@ app.layout = html.Div([
         html.Div(
             # The input object itself
             ["Input duration: ", dcc.Input(
-                id='duration-Int', value='1', type='text'
+                id='duration-Int', value='10', type='text'
             ), dcc.Dropdown(options=[
            {'label': 'Second', 'value': 'S'},
            {'label': 'Day', 'value': 'D'},
@@ -242,9 +242,11 @@ app.layout = html.Div([
     # Another line break
     html.Br(),
     # Section title
-    html.H6("Make a Trade"),
+    html.H2("Make a Trade"),
     # Div to confirm what trade was made
-    html.Div(id='trade-output'),
+    # html.Div(id='trade-output'),
+    html.Div(id='trade-output', children='Lets make an order',
+             style={'color': 'blue', 'fontSize': 20}),
     # Radio items to select buy or sell
     dcc.RadioItems(
         id='buy-or-sell',
@@ -281,7 +283,7 @@ app.layout = html.Div([
     ),
     html.Div(
         # Numeric input for the trade amount
-        ["Amount: ", dcc.Input(id='trade-amt', value='10000', type='number')], style={'padding-top': '5px'}
+        ["Amount: ", dcc.Input(id='trade-amt', value='100', type='number')], style={'padding-top': '5px'}
     ),
 
     # html.Div(["Input limit price: ", dcc.Input(id='limit-price', value='', type='number')]),
@@ -446,9 +448,13 @@ def update_candlestick_graph(n_clicks, currency_string, what_to_show,
     State("contract-sec-type", "value"),State("contract-currency", "value"),State("contract-exchange", "value"), State('trade-amt', 'value'),
      State("host", "value"),State("port", "value"), State("clientid", "value")],
     # We DON'T want to start executing trades just because n_clicks was initialized to 0!!!
-    prevent_initial_call=True
+    # prevent_initial_call=True
 )
 def trade(n_clicks, action,order_type,lmt_price, con_symbol, con_type,con_currency, con_exchange, trade_amt,host, port, clientid): # Still don't use n_clicks, but we need the dependency
+    table_data = pd.read_csv('submitted_orders.csv',index_col=0).iloc[::-1].to_dict('records')
+    if n_clicks==0:
+        msg = 'Let\'s make an order!'
+        return msg, table_data
     contract = Contract()
     contract.symbol   = con_symbol
     contract.secType  = con_type
@@ -460,21 +466,34 @@ def trade(n_clicks, action,order_type,lmt_price, con_symbol, con_type,con_curren
     order.orderType = order_type
     order.totalQuantity = trade_amt
     order.lmtPrice=lmt_price
-    # Make the message that we want to send back to trade-output
-    msg = action + ' ' + str(trade_amt) + ' ' + con_symbol
+
+    # test for valid contract and order before trading
+    matching_symbols = fetch_matching_symbols(con_symbol)
+    if matching_symbols.shape[0]==0:
+        msg = f"Error: {con_symbol} is not a valid symbol."
+        return msg, table_data
+    elif con_symbol not in matching_symbols['symbol'].values:
+        msg = f"Error: {con_symbol} is not a valid symbol."
+        return msg, table_data
+    elif con_type not in matching_symbols['sec_type'].values:
+        msg = f"Error: {con_type} is not a valid secType."
+        return msg, table_data
+    elif con_currency not in matching_symbols['currency'].values:
+        msg =f"Error: {con_currency} is not a valid currency."
+        return msg, table_data
 
 
     order_response_mkt = place_order(contract, order)
-
+    con_details = fetch_contract_details(contract)
     time = fetch_current_time(host, port, clientid)
     print("order successful!")
     # Make our trade_order object -- a DICTIONARY.
     trade_order = {
         "timestamp": time,
-        "order_id": order.orderId,
+        "order_id": order_response_mkt['order_id'].iloc[-1],
         "client_id": clientid,
         'perm_id':order_response_mkt['perm_id'].iloc[-1],
-        'con_id':contract.conId,
+        'con_id':con_details['con_id'].iloc[-1],
         'symbol':contract.symbol,
         "action": action,
         "size": trade_amt,
@@ -493,6 +512,10 @@ def trade(n_clicks, action,order_type,lmt_price, con_symbol, con_type,con_curren
     print("order recorded!")
     print("order_response_mkt：",order_response_mkt)
     # Return the message, which goes to the trade-output div's "children" attribute.
+
+    # Make the message that we want to send back to trade-output
+    msg = f"{action} {str(trade_amt)} {con_symbol}"
+
     return msg, df.iloc[::-1].to_dict('records')
 
 # Run it!
