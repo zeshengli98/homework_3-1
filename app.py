@@ -466,12 +466,18 @@ def trade(n_clicks, action,order_type,lmt_price, con_symbol, con_type,con_curren
     order.orderType = order_type
     order.totalQuantity = trade_amt
     order.lmtPrice=lmt_price
-
+    contract_details = fetch_contract_details(contract)
+    # if type(contract_details) == str:
+    #     msg = f"Error: {contract_details}! Please check your input."
+    #     # if wrong input, return blank figure
+    #     return msg, table_data
     # test for valid contract and order before trading
     matching_symbols = fetch_matching_symbols(con_symbol)
+    matching_symbols = matching_symbols[matching_symbols['symbol']==con_symbol]
     if matching_symbols.shape[0]==0:
         msg = f"Error: {con_symbol} is not a valid symbol."
         return msg, table_data
+
     elif con_symbol not in matching_symbols['symbol'].values:
         msg = f"Error: {con_symbol} is not a valid symbol."
         return msg, table_data
@@ -490,7 +496,7 @@ def trade(n_clicks, action,order_type,lmt_price, con_symbol, con_type,con_curren
     # Make our trade_order object -- a DICTIONARY.
     trade_order = {
         "timestamp": time,
-        "order_id": order_response_mkt['order_id'].iloc[-1],
+        "order_id": order_response_mkt['order_id'].max(),
         "client_id": clientid,
         'perm_id':order_response_mkt['perm_id'].iloc[-1],
         'con_id':con_details['con_id'].iloc[-1],
